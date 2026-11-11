@@ -511,20 +511,27 @@ pgr-web-7bc944cb9d-pz89k   1/1     Running   0          4s
 
 ---
 
-### Phase 3: Verifying Intelligent Traffic Distribution
+### Phase 3: Verifying Intelligent Traffic Distribution (EndpointSlice Discovery)
 
 How does Kubernetes know where to send incoming user traffic?
 
-Inspect the endpoints managed by `pgr-web-service`:
+Kubernetes uses the **EndpointSlice API** (`discovery.k8s.io`) for scalable service discovery. When you scaled the deployment to 5 replicas, Kubernetes automatically discovered all 5 Pods and registered their internal network endpoints into an `EndpointSlice`.
+
+Inspect the discovery endpoint slices associated with `pgr-web-service`:
 ```bash
-kubectl get endpoints pgr-web-service
+kubectl get endpointslice -l kubernetes.io/service-name=pgr-web-service
 ```
 Output:
 ```text
-NAME              ENDPOINTS                                                        AGE
-pgr-web-service   10.244.0.12:8080,10.244.0.13:8080,10.244.0.14:8080 + 2 more...   6m
+NAME                    ADDRESSTYPE   PORTS   ENDPOINTS                               AGE
+pgr-web-service-7xk9p   IPv4          8080    10.244.0.12,10.244.0.13,10.244.0.14...   6m
 ```
-Kubernetes automatically added the private internal IPs of all 5 Pods into the Service's active routing table. When HTTP requests arrive at `pgr-web-service`, Kubernetes distributes traffic across all 5 Pods via round-robin load balancing.
+
+To view the detailed discovery metadata showing each Pod's private IP, port, and readiness status:
+```bash
+kubectl describe endpointslice -l kubernetes.io/service-name=pgr-web-service
+```
+You will see all 5 Pod IPs registered with `Ready: true`. When HTTP requests arrive at `pgr-web-service`, the cluster network proxy (kube-proxy) distributes traffic evenly across all 5 Pods via round-robin load balancing.
 
 Follow logs across all 5 web Pods simultaneously:
 ```bash

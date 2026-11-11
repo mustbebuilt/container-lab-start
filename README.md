@@ -138,4 +138,7 @@ dotnet test
 
 ### 5. Containerisation Lab
 
-This repo forms the basis for the containerisation lab. Use the instructions in [LabResources/lab3-instructions.md](LabResources/lab-instructions.md) to containerise the application.
+This repository forms the basis for the containerisation lab. Use the step-by-step instructions in [LabResources/lab-instructions.md](LabResources/lab-instructions.md) to containerise the application.
+
+- **College Lab PCs (Default)**: Access Docker via a cloud development VM at [https://devportal.microsoft.com/](https://devportal.microsoft.com/) (eliminates local administrator permission barriers).
+- **Personal Laptops (Alternative)**: Run Docker Desktop natively on macOS.

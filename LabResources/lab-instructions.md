@@ -68,49 +68,109 @@ By the end of this lab, you will be able to:
 
 ## Part 1: Setting Up & Verifying Docker Desktop
 
-### 1.1 What is Docker Desktop?
+### 1.1 Understanding Your Lab Environment: Why Use a Cloud Dev VM?
 
-**Docker Desktop** is an integrated application providing the Docker Engine (daemon), Docker CLI client, Docker Compose, Docker Scout, container credential management, and an optional single-node Kubernetes cluster.
+Running Docker and Kubernetes requires low-level system virtualisation (such as WSL 2 or Hyper-V) and daemon privileges that require **local administrative rights**. On standard institutional/college lab computers, student accounts intentionally do **not** have administrator permissions, preventing direct local installation of Docker Desktop or modifying system virtualisation features.
 
-### 1.2 Installation Instructions
+To ensure an unconstrained, consistent, and pre-configured developer experience, this lab uses two access routes:
 
-#### macOS:
-1. Download the installer from [docker.com/products/docker-desktop](https://www.docker.com/products/docker-desktop/):
-   - Choose **Mac with Apple Silicon** if using an M1/M2/M3/M4 chip.
-   - Choose **Mac with Intel chip** if using an older Intel-based Mac.
-2. Double-click `Docker.dmg`, drag the **Docker** icon to your **Applications** folder, and launch Docker from Applications.
-3. In the setup wizard, choose **Use recommended settings** and grant privileged helper permissions when prompted.
+- **Option A (Default & Primary Setup for College PCs)**: Access a cloud-hosted virtual development machine (Microsoft Dev Box / Dev VM) via the **Microsoft Dev Portal** ([https://devportal.microsoft.com/](https://devportal.microsoft.com/)). This VM comes with administrator privileges, Docker Desktop pre-installed, and all necessary tooling ready to go.
+- **Option B (Alternative for Personal Laptops)**: If you are using your own **personal Mac (macOS)** laptop in class, you have local administrator rights and can run Docker Desktop natively on macOS.
 
-#### Windows:
-1. Ensure **Virtual Machine Platform** and **WSL 2** (Windows Subsystem for Linux 2) are enabled:
-   ```powershell
-   wsl --install
-   wsl --update
-   ```
-2. Download and run the **Docker Desktop for Windows** installer.
-3. Ensure the option **Use WSL 2 instead of Hyper-V (recommended)** is checked.
-4. Restart your computer if prompted.
+---
 
-#### Linux:
-1. Follow the official distribution guide for [Docker Engine](https://docs.docker.com/engine/install/) and the [Docker Compose plugin](https://docs.docker.com/compose/install/linux/).
-2. Add your user to the `docker` group:
-   ```bash
-   sudo usermod -aG docker $USER
-   ```
+### 1.2 Option A (Default): Accessing the Dev Portal VM & Installing Docker (AMD64)
 
-### 1.3 Recommended Docker Desktop Settings
+If you are working on a college lab PC (or any computer where you do not have administrative rights), follow these steps to connect to your cloud Dev VM and install Docker:
 
-Open Docker Desktop, navigate to **Settings (Gear Icon)**:
-- **General**: Ensure *Start Docker Desktop when you log in* is checked (optional).
-- **Resources**:
-  - **CPUs**: Allocate at least **2 to 4 vCPUs**.
-  - **Memory**: Allocate at least **4 GB RAM** (our stack runs ASP.NET Core, MySQL, PostgreSQL, and MongoDB concurrently).
-  - **Virtual disk limit**: Ensure at least **20 GB** is free.
-- Click **Apply & restart**.
+1. **Sign In to the Microsoft Dev Portal:**
+   - Open your web browser (Chrome, Edge, or Firefox) and navigate to:
+     $$\rightarrow\text{ }\textbf{\url{https://devportal.microsoft.com/}}$$
+   - Sign in using your **college/university Microsoft 365 credentials** (e.g. `your.name@college.ac.uk`).
 
-### 1.4 Verifying Your Docker Environment
+2. **Access Your Assigned Dev Box (Virtual Machine):**
+   - On the Dev Portal dashboard, locate your project workspace and the **Dev Box** provisioned for this module.
+   - If your Dev Box is currently *Stopped*, click **Start** and allow 1–2 minutes for the virtual machine to boot.
 
-Open your terminal and run the following commands to confirm your installation:
+3. **Connect to the Dev Box:**
+   - **Method 1 (Browser Web Client — Fastest):** Click **Open in browser**. A full interactive Windows desktop session will open directly inside your browser tab.
+   - **Method 2 (Remote Desktop / Windows App):** Click the drop-down next to Open and select **Open in Remote Desktop app** or **Open in Windows App** for a full-screen, multi-monitor client experience.
+
+4. **Verify System Architecture in PowerShell:**
+   - Inside the Dev Box, open **PowerShell** (search for *PowerShell* in the Start Menu).
+   - Check the VM processor architecture by running:
+     ```powershell
+     $env:PROCESSOR_ARCHITECTURE
+     ```
+   - This should return `AMD64`, confirming a 64-bit x86/Intel/AMD architecture.
+
+5. **Install Docker Desktop (AMD64):**
+   The Dev Box VM comes with administrator privileges, but Docker Desktop is not pre-installed. Choose either of the following methods to install it:
+
+   - **Method 1 (Recommended — Quickest via winget):**
+     In PowerShell, execute the Windows Package Manager command:
+     ```powershell
+     winget install -e --id Docker.DockerDesktop
+     ```
+     Press `Y` to accept the license agreements if prompted. Wait for the installer to download and run.
+
+   - **Method 2 (Direct Installer Download):**
+     Open Microsoft Edge inside the Dev Box and download the official **AMD64** installer directly:
+     $$\rightarrow\text{ }\textbf{\url{https://desktop.docker.com/win/main/amd64/Docker%20Desktop%20Installer.exe}}$$
+     Run `Docker Desktop Installer.exe`.
+
+   > [!IMPORTANT]
+   > **Critical Installer Configuration Options:**
+   > During installation (or in the installer dialog), ensure you select the following options:
+   > 1. Select **All Users Installation (Requires Password)** (installs for all users on the machine).
+   > 2. Ensure **WSL 2** is selected (Use WSL 2 instead of Hyper-V).
+   > 3. Once installation completes, click **Close and restart** (to reboot the Dev Box and register the WSL 2 subsystem).
+
+6. **Reconnect and Update WSL:**
+   - After the Dev Box restarts, reconnect to your VM via the Dev Portal (`https://devportal.microsoft.com/`).
+   - Open **PowerShell** or **Terminal** as Administrator (or standard user) and immediately run:
+     ```powershell
+     wsl.exe --update
+     ```
+     *(This ensures the latest WSL 2 Linux kernel is installed so the Docker engine can start reliably).*
+
+7. **Launch and Initialise Docker Desktop:**
+   - Open the **Start Menu**, search for **Docker Desktop**, and launch it.
+   - Accept the Docker Subscription Service Agreement if prompted.
+   - Wait until the status bar in the bottom-left corner of Docker Desktop turns green: **"Engine running"** (or the Docker whale icon in the system tray shows active).
+
+8. **Open Terminal and Clone Your Code:**
+   - In PowerShell or VS Code inside the Dev Box, navigate to your workspace directory and clone the repository:
+     ```powershell
+     git clone <your-repository-url>
+     cd container-lab-start
+     ```
+
+---
+
+### 1.3 Option B (Alternative): Local Setup on Personal Mac (macOS)
+
+If you are using your own personal Mac laptop where you have administrator privileges, you can run Docker Desktop natively on macOS:
+
+1. **Download Docker Desktop for Mac:**
+   - Visit [docker.com/products/docker-desktop](https://www.docker.com/products/docker-desktop/).
+   - Choose **Mac with Apple Silicon** if using an M1, M2, M3, or M4 Mac.
+   - Choose **Mac with Intel chip** if using an older Intel Mac.
+2. **Install and Launch:**
+   - Open `Docker.dmg`, drag the **Docker** icon to your **Applications** folder, and launch Docker from Applications or Spotlight.
+   - When prompted, grant privileged helper permissions (required to configure network filters and virtualisation).
+3. **Recommended Resource Allocation:**
+   - In Docker Desktop, click the **Settings (Gear Icon)** $\rightarrow$ **Resources**:
+     - **CPUs**: Allocate at least **2 to 4 vCPUs**.
+     - **Memory**: Allocate at least **4 GB RAM** (our stack runs ASP.NET Core, MySQL, PostgreSQL, and MongoDB concurrently).
+     - **Disk**: Ensure at least **20 GB** is free.
+   - Click **Apply & restart**.
+
+---
+
+### 1.4 Verifying Your Docker Environment (Both Setups)
+
+Whether working inside the **Microsoft Dev Portal VM** or locally on a **Mac**, open your terminal (**PowerShell** on the Dev Box, or **Terminal / zsh** on Mac) and execute:
 
 ```bash
 # 1. Check Docker CLI and Daemon versions
@@ -119,20 +179,31 @@ docker version
 # 2. Check Docker Compose version (V2 compose plugin)
 docker compose version
 
-# 3. Inspect system info
+# 3. Inspect system info and runtime resources
 docker info
 
 # 4. Run the canonical test image
 docker run --rm hello-world
 ```
 
+If you see the message:
+```text
+Hello from Docker!
+This message shows that your installation appears to be working correctly.
+```
+Your Docker engine is active, your user account has container execution permissions, and you are ready to begin containerising the multi-database stack!
+
 > [!NOTE]
-> What did `docker run --rm hello-world` do behind the scenes?
+> **What did `docker run --rm hello-world` do behind the scenes?**
 > 1. The **Docker client** contacted the **Docker daemon**.
 > 2. The daemon checked its local image cache; because `hello-world:latest` was not found locally, it pulled the image from **Docker Hub**.
 > 3. The daemon created a new container from that image and executed its default executable (`/hello`).
 > 4. The container printed the welcome message to standard output, which was streamed back to your terminal.
 > 5. Because the `--rm` flag was supplied, the container was automatically deleted when it finished running.
+
+> [!TIP]
+> **One-Line CLI Commands:**
+> All Docker CLI commands in this guide are formatted as single continuous lines without backslashes (`\`) or backticks (``` ` ```). This makes them easy to copy and paste directly into PowerShell on the Dev Box VM or Terminal on macOS without line-break or syntax errors.
 
 ---
 
@@ -176,13 +247,12 @@ In ASP.NET Core, any configuration value in `appsettings.json` can be overridden
 To build a solid mental model of how containers work before using automated orchestration tools, we will first create the database containers individually using the `docker` CLI.
 
 > [!WARNING]
-> **Port Conflicts with Host Databases:**
-> If you currently have local instances of MySQL (`3306`), PostgreSQL (`5432`), or MongoDB (`27017`) running on your host machine, they will occupy those ports.
-> - On macOS, stop them before proceeding:
+> **Port Conflicts with Host Databases (Mac Users Only):**
+> - **Dev Portal VM Users (Default):** Your cloud VM is a dedicated container host with no host-level database servers running, so ports `3306`, `5432`, and `27017` are completely free. You can proceed directly to Step 3.1!
+> - **Personal Mac Users:** If you previously had local instances of MySQL (`3306`), PostgreSQL (`5432`), or MongoDB (`27017`) running directly on macOS, they will occupy those ports. Stop them before proceeding:
 >   - Stop Postgres.app or run `brew services stop postgresql@16`.
->   - Stop MySQL: `brew services stop mysql` or use the MySQL Preference Pane.
+>   - Stop MySQL: `brew services stop mysql` or use the MySQL System Settings pane.
 >   - Stop MongoDB: `brew services stop mongodb-community`.
-> - Alternatively, in Docker you can map container ports to custom host ports (e.g. `-p 3307:3306`), but using the standard ports makes transitioning to Docker Compose seamless.
 
 ### Step 3.1: Create a Dedicated Bridge Network
 
@@ -210,16 +280,7 @@ We will use the lightweight official `postgres:16-alpine` image.
 
 2. **Launch the PostgreSQL container:**
    ```bash
-   docker run -d \
-     --name postgres-db \
-     --network pgr-network \
-     -p 5432:5432 \
-     -e POSTGRES_USER=identity \
-     -e POSTGRES_PASSWORD='identity$' \
-     -e POSTGRES_DB=identity \
-     -v postgres_data:/var/lib/postgresql/data \
-     --restart unless-stopped \
-     postgres:16-alpine
+   docker run -d --name postgres-db --network pgr-network -p 5432:5432 -e POSTGRES_USER=identity -e POSTGRES_PASSWORD='identity$' -e POSTGRES_DB=identity -v postgres_data:/var/lib/postgresql/data --restart unless-stopped postgres:16-alpine
    ```
 
    **Explanation of flags:**
@@ -253,15 +314,7 @@ We will use the official `mysql:9.0` (or `mysql:8.4-lts`) image.
 
 2. **Launch the MySQL container:**
    ```bash
-   docker run -d \
-     --name mysql-db \
-     --network pgr-network \
-     -p 3306:3306 \
-     -e MYSQL_ROOT_PASSWORD='pass1234%uZ' \
-     -e MYSQL_DATABASE=student_management_db \
-     -v mysql_data:/var/lib/mysql \
-     --restart unless-stopped \
-     mysql:9.0
+   docker run -d --name mysql-db --network pgr-network -p 3306:3306 -e MYSQL_ROOT_PASSWORD='pass1234%uZ' -e MYSQL_DATABASE=student_management_db -v mysql_data:/var/lib/mysql --restart unless-stopped mysql:9.0
    ```
 
 3. **Verify MySQL is running:**
@@ -287,13 +340,7 @@ We will use the official `mongo:5.0` image.
 
 2. **Launch the MongoDB container:**
    ```bash
-   docker run -d \
-     --name mongo-db \
-     --network pgr-network \
-     -p 27017:27017 \
-     -v mongo_data:/data/db \
-     --restart unless-stopped \
-     mongo:5.0
+   docker run -d --name mongo-db --network pgr-network -p 27017:27017 -v mongo_data:/data/db --restart unless-stopped mongo:5.0
    ```
 
 3. **Verify MongoDB is running:**
@@ -434,16 +481,7 @@ Notice the size: it is approximately **250 MB**, compared to over 1 GB if the SD
 Now launch the web application container attached to `pgr-network`. Notice how we supply environment variables to point connection strings to `mysql-db`, `postgres-db`, and `mongo-db` instead of `localhost`:
 
 ```bash
-docker run -d \
-  --name pgr-web \
-  --network pgr-network \
-  -p 5277:8080 \
-  -e ConnectionStrings__StudentManagementDatabase="Server=mysql-db;Port=3306;Database=student_management_db;User=root;Password=pass1234%uZ;" \
-  -e ConnectionStrings__IdentityDatabase="Host=postgres-db;Port=5432;Database=identity;Username=identity;Password=identity$" \
-  -e ConnectionStrings__MongoDb="mongodb://mongo-db:27017" \
-  -e ResearchActivityDatabase__DatabaseName="StudentManagement" \
-  -e ResearchActivityDatabase__CollectionName="ResearchActivities" \
-  pgr-student-management:1.0
+docker run -d --name pgr-web --network pgr-network -p 5277:8080 -e ConnectionStrings__StudentManagementDatabase="Server=mysql-db;Port=3306;Database=student_management_db;User=root;Password=pass1234%uZ;" -e ConnectionStrings__IdentityDatabase="Host=postgres-db;Port=5432;Database=identity;Username=identity;Password=identity$" -e ConnectionStrings__MongoDb="mongodb://mongo-db:27017" -e ResearchActivityDatabase__DatabaseName="StudentManagement" -e ResearchActivityDatabase__CollectionName="ResearchActivities" pgr-student-management:1.0
 ```
 
 Inspect the container logs to watch the application start and seed databases:

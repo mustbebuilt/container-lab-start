@@ -138,4 +138,4 @@ dotnet test
 
 ### 5. Containerisation Lab
 
-This repo forms the basis for the containerisation lab. Use the instructions in [LabResources/lab3-instructions.md](LabResources/lab3-instructions.md) to containerise the application.
+This repo forms the basis for the containerisation lab. Use the instructions in [LabResources/lab3-instructions.md](LabResources/lab-instructions.md) to containerise the application.

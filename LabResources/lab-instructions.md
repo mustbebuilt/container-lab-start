@@ -138,12 +138,23 @@ If you are working on a college lab PC (or any computer where you do not have ad
    - Accept the Docker Subscription Service Agreement if prompted.
    - Wait until the status bar in the bottom-left corner of Docker Desktop turns green: **"Engine running"** (or the Docker whale icon in the system tray shows active).
 
-8. **Open Terminal and Clone Your Code:**
-   - In PowerShell or VS Code inside the Dev Box, navigate to your workspace directory and clone the repository:
-     ```powershell
-     git clone <your-repository-url>
-     cd container-lab-start
-     ```
+8. **Open Native PowerShell (Not the VS Code Terminal):**
+   > [!IMPORTANT]
+   > **Always Use Native PowerShell (or Windows Terminal) Directly:**
+   > Run all CLI commands throughout this lab in a standalone **PowerShell** window (or **Windows Terminal**) launched directly from the Windows Start Menu, **not** inside the integrated terminal pane in VS Code.
+   > 
+   > **Why avoid VS Code's integrated terminal?**
+   > - **Stale Environment Variables:** VS Code caches the `$env:Path` from when it was launched. After installing Docker or updating WSL, VS Code's terminal will **not** detect the new tools and will report `'docker: command not found'`.
+   > - **Shell Profile Confusion:** VS Code often defaults new terminal tabs to `cmd.exe` (Command Prompt) or `Git Bash`, causing PowerShell commands and variable expansions to fail with syntax errors.
+   > - **Interactive Output Glitches:** Interactive CLI tools (such as Docker download progress bars or WSL status prompts) can freeze or glitch inside embedded IDE terminal buffers.
+   > 
+   > **Recommended Workflow:** Keep **VS Code** open for viewing and editing code, Dockerfiles, and compose files, while keeping a dedicated native **PowerShell** window running alongside it for all terminal operations.
+
+   In your native PowerShell window, navigate to your workspace directory and clone the repository:
+   ```powershell
+   git clone <your-repository-url>
+   cd container-lab-start
+   ```
 
 ---
 

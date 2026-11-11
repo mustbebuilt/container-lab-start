@@ -103,6 +103,13 @@ On the Microsoft Dev Portal VM, your user directory is `C:\Users\student` (`$HOM
 > **Why is this necessary?**
 > Windows only recognizes commands without their full file path (like `minikube` instead of `C:\Users\student\minikube.exe`) if the folder containing the `.exe` is listed in your system or user `PATH` environment variable. The command above permanently registers `C:\Users\student` so you can run `minikube` and `kubectl` from anywhere in your project workspace!
 
+> [!IMPORTANT]
+> **Always Use Native PowerShell Directly (Do NOT Use the VS Code Terminal):**
+> Execute all commands in a standalone **PowerShell** window (or **Windows Terminal**) opened from the Start Menu, **not** inside VS Code’s integrated terminal.
+> - **Why?** If VS Code is open while you run `winget` or update `$env:Path`, opening a new terminal tab inside VS Code **will not inherit the updated PATH**. VS Code caches the environment of the parent process, causing `minikube` or `kubectl` to report `'command not recognized'`.
+> - **Profile Confusion:** VS Code often defaults new terminal tabs to `cmd.exe` (Command Prompt) or `Git Bash`, where PowerShell syntax (such as `$env:Path += ";$HOME"`) is invalid.
+> - **Recommended Workflow:** Keep **VS Code** open for editing Kubernetes YAML manifests and source code, and use a dedicated native **PowerShell** window at the repository root (`container-lab-start`) to run all cluster commands!
+
 ---
 
 #### On Personal Mac (macOS — Alternative):

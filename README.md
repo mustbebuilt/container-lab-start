@@ -48,16 +48,16 @@ PgrStudentManagement.Web/Modules/
 
 ### 4. Research Activities Module ([`Modules/ResearchActivities`](./PgrStudentManagement.Web/Modules/ResearchActivities))
 - Tracks student research activities, conference presentations, published papers, and research milestones.
-- **Persistence**: Stubbed from a static JSON file ([`Modules/ResearchActivities/Data/research-activities.json`](./PgrStudentManagement.Web/Modules/ResearchActivities/Data/research-activities.json)).
+- **Persistence**: Stored in a NoSQL **MongoDB** database (`StudentManagement` database, `ResearchActivities` collection).
 
 ---
 
 ## Database Architecture & Persistence
 
-The application uses **SQLite** for relational domain models with foreign keys, and a static JSON file for stubbed research activity documents.
+The application uses **MySQL** for relational domain models, **PostgreSQL** for ASP.NET Core Identity authentication and authorization, and **MongoDB** for flexible semi-structured research activity documents.
 
-### 1. SQLite Relational Database (`student-management.db`)
-- **Location**: Local file `PgrStudentManagement.Web/student-management.db` (configured in `appsettings.json`).
+### 1. MySQL Domain Relational Database (`student_management_db`)
+- **Connection**: `Server=localhost;Port=3306;Database=student_management_db;User=root;Password=pass1234%uZ;` (configured in `appsettings.json` under `ConnectionStrings:StudentManagementDatabase`).
 - **Tables**:
   - `Students`: Core student demographic and research milestone records.
   - `Enrolments`: Programme history and enrolment statuses (`Active`, `Suspended`, `Completed`).
@@ -65,29 +65,41 @@ The application uses **SQLite** for relational domain models with foreign keys, 
   - `AcademicSupervisorEligibleRoles`: Many-to-many relationship mapping supervisors to permissible supervisory roles.
   - `SupervisoryAssignments`: Student-supervisor team pairings with start/end dates and role types.
   - `PhdApplications`: Candidate applications, proposals, proposed supervisors, and status history.
-- **Zero Configuration**: SQLite requires no installation or running services.
-- **Automatic Migration & Seeding**: When the application boots, `Program.cs` automatically invokes `context.Database.MigrateAsync()`, ensuring all schema tables are created and seeded if they do not yet exist.
-- **Manual Migrations** (optional):
-  ```bash
-  dotnet ef migrations add <MigrationName> --project PgrStudentManagement.Web
-  dotnet ef database update --project PgrStudentManagement.Web
-  ```
+- **Automatic Schema Creation & Seeding**: When the application boots, `Program.cs` automatically invokes `context.Database.EnsureCreatedAsync()`, ensuring all schema tables are created and seeded if they do not yet exist.
 
-### 2. Static JSON Research Activities (`research-activities.json`)
-- **Location**: `PgrStudentManagement.Web/Modules/ResearchActivities/Data/research-activities.json` (configured in `appsettings.json` under `ResearchActivityData:FilePath`).
-- **Zero External Services**: Requires no external database server to run or test.
+### 2. PostgreSQL Identity Database (`identity`)
+- **Connection**: `Host=localhost;Port=5432;Database=identity;Username=identity;Password=identity$` (configured in `appsettings.json` under `ConnectionStrings:IdentityDatabase`).
+- **Purpose**: Backing store for ASP.NET Core Identity, securing the **Academic Supervisors** module with authentication and role-based authorization.
+- **Tables**: Standard EF Core Identity tables (`AspNetUsers`, `AspNetRoles`, `AspNetUserRoles`, `AspNetUserClaims`, `AspNetUserLogins`, `AspNetUserTokens`, `AspNetRoleClaims`).
+- **Default Seeded Account**:
+  - **Email**: `supervisor@pgr.ac.uk`
+  - **Password**: `Password123!`
+  - (Referenced in [`credentials.md`](./credentials.md))
+
+### 3. MongoDB Research Activities Database (`StudentManagement`)
+- **Connection**: `mongodb://localhost:27017` (configured in `appsettings.json` under `ConnectionStrings:MongoDb` and `ResearchActivityDatabase`).
+- **Database**: `StudentManagement`
+- **Collection**: `ResearchActivities`
+- **Document Model**: Flexible document schema storing activity metadata, typed activity discriminator, and arbitrary key-value details (reflections, discussion points, action items, presentation abstracts).
+- **Seeding**: Automatically seeded via `ResearchActivityDataSeeder` on boot if no documents exist for the primary test student.
 
 ---
 
 ## How to Run the Application
 
-### 1. Build the Solution
+### 1. Prerequisites
+Ensure your local database instances are running:
+- **MySQL Server** on `localhost:3306` with database `student_management_db` accessible by user `root`.
+- **PostgreSQL Server** (e.g., Postgres.app) on `localhost:5432` with database `identity` accessible by user `identity`.
+- **MongoDB Server** on `localhost:27017` with database `StudentManagement`.
+
+### 2. Build the Solution
 From the repository root:
 ```bash
 dotnet build
 ```
 
-### 2. Run the Web Project
+### 3. Run the Web Project
 Launch the web application:
 ```bash
 dotnet run --project PgrStudentManagement.Web
@@ -101,17 +113,20 @@ By default, the application listens on:
 - HTTP: `http://localhost:5277`
 - HTTPS: `https://localhost:7178`
 
-### 3. Application Startup Sequence
+### 4. Application Startup Sequence
 When [PgrStudentManagement.Web/Program.cs](PgrStudentManagement.Web/Program.cs) executes:
-1. **Service Registration**: Registers MVC controllers, EF Core SQLite `DbContext`, DAOs, repositories, and cross-module services (`IStudentLookup`, `ISupervisorLookup`).
-2. **Database Migration**: Automatically applies pending EF Core migrations (`await context.Database.MigrateAsync()`).
+1. **Service Registration**: Registers MVC controllers, MySQL EF Core `StudentManagementDbContext`, PostgreSQL EF Core `AppIdentityDbContext`, ASP.NET Core Identity services, DAOs, repositories, and cross-module services (`IStudentLookup`, `ISupervisorLookup`).
+2. **Database Provisioning**:
+   - Creates and updates MySQL domain schema via `context.Database.EnsureCreatedAsync()`.
+   - Creates PostgreSQL Identity schema via `identityContext.Database.EnsureCreatedAsync()`.
 3. **Ordered Data Seeding**:
    - `StudentDataSeeder` (Students)
    - `EnrolmentDataSeeder` (Enrolments referencing `StudentNumber`)
    - `AcademicSupervisorDataSeeder` (Supervisors and supervisory assignments)
    - `PhdApplicationDataSeeder` (PhD applications referencing supervisors and students)
    - `ResearchActivityDataSeeder` (Research activity records)
-4. **Endpoint Routing**: Maps controllers and static asset endpoints.
+   - `AppIdentityDataSeeder` (Default supervisor user and roles in PostgreSQL)
+4. **Middleware Pipeline**: Configures routing, `app.UseAuthentication()`, `app.UseAuthorization()`, and static assets.
 
 ### 4. Running the Tests
 To run unit and integration tests across all modules:
@@ -144,6 +159,12 @@ This project includes a two-part hands-on lab sequence focused on improving form
   - **Part 3**: Visual keyboard and tab-stop path auditing with **Microsoft Accessibility Insights for Web**.
   - **Part 4**: Automated usability and WCAG 2.2 AA testing with **Playwright** and **axe-core** (`@playwright/test` + `@axe-core/playwright` and .NET xUnit `Microsoft.Playwright` + `Deque.AxeCore.Playwright`).
   - **Part 5**: Branch comparison scorecard and reflection questions.
+- **Lab 3 — Containerisation with Docker & Preparing for MiniKube**: [`LabResources/lab3-instructions.md`](./LabResources/lab3-instructions.md)
+  - **Docker Desktop Setup**: Step-by-step installation, resource configuration, and CLI verification (`docker version`, `docker info`, `hello-world`).
+  - **Database Container Extraction**: Decoupling host installations into isolated Docker containers for **PostgreSQL 16** (Identity), **MySQL 9** (domain data), and **MongoDB 5** (research activities) on a shared bridge network (`pgr-network`).
+  - **Multi-Stage Dockerfile**: Authoring an optimized, lightweight ASP.NET Core production image with `.dockerignore` and non-root execution.
+  - **Docker Compose Orchestration**: Managing the complete 4-container stack with `docker-compose.yml`, health checks, service dependencies, and persistent named volumes.
+  - **Transition to MiniKube**: Mapping containers to Kubernetes Pods, Deployments, Services, ConfigMaps, and PersistentVolumeClaims.
 - **Code Snippets & Heavy Hints Companion**: [`LabResources/code-snippets.md`](./LabResources/code-snippets.md)
   - Concrete C# and Razor implementations for `CreatePhdApplicationViewModel`, `PhdApplicationsController`, `Create.cshtml`, `Details.cshtml`, `Index.cshtml`, and `EditStatus.cshtml`.
 

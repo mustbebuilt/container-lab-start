@@ -1,5 +1,8 @@
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using MongoDB.Driver;
 
+using PgrStudentManagement.Web.Data;
 using PgrStudentManagement.Web.Modules.Students.Contracts;
 using PgrStudentManagement.Web.Modules.Students.Data;
 using PgrStudentManagement.Web.Modules.Students.Data.Daos;
@@ -24,11 +27,42 @@ builder.Services.AddControllersWithViews()
     .AddViewOptions(options =>
         options.HtmlHelperOptions.ClientValidationEnabled = false);
 
-// Configure relational persistence.
+// Configure relational persistence using MySQL.
 builder.Services.AddDbContext<StudentManagementDbContext>(
-    options => options.UseSqlite(
+    options => options.UseMySQL(
         builder.Configuration.GetConnectionString(
-            "StudentManagementDatabase")));
+            "StudentManagementDatabase")!));
+
+// Configure Identity persistence using PostgreSQL.
+builder.Services.AddDbContext<AppIdentityDbContext>(
+    options => options.UseNpgsql(
+        builder.Configuration.GetConnectionString(
+            "IdentityDatabase")));
+
+// Configure ASP.NET Core Identity.
+builder.Services.AddIdentity<IdentityUser, IdentityRole>(options =>
+{
+    options.SignIn.RequireConfirmedAccount = false;
+    options.Password.RequireDigit = true;
+    options.Password.RequireLowercase = true;
+    options.Password.RequireUppercase = true;
+    options.Password.RequireNonAlphanumeric = false;
+    options.Password.RequiredLength = 6;
+})
+.AddEntityFrameworkStores<AppIdentityDbContext>()
+.AddDefaultTokenProviders();
+
+builder.Services.ConfigureApplicationCookie(options =>
+{
+    options.LoginPath = "/Account/Login";
+    options.LogoutPath = "/Account/Logout";
+    options.AccessDeniedPath = "/Account/AccessDenied";
+    options.Cookie.HttpOnly = true;
+    options.ExpireTimeSpan = TimeSpan.FromHours(2);
+    options.SlidingExpiration = true;
+});
+
+builder.Services.AddScoped<AppIdentityDataSeeder>();
 
 // Students module.
 builder.Services.AddScoped<StudentDao>();
@@ -45,7 +79,15 @@ builder.Services.AddScoped<IStudentLookup>(
 builder.Services.AddScoped<StudentDataSeeder>();
 builder.Services.AddScoped<EnrolmentDataSeeder>();
 
-// Research Activities module.
+// Research Activities module (MongoDB).
+builder.Services.AddSingleton<IMongoClient>(sp =>
+{
+    var configuration = sp.GetRequiredService<IConfiguration>();
+    var connectionString = configuration.GetConnectionString("MongoDb")
+        ?? configuration["ResearchActivityDatabase:ConnectionString"]
+        ?? "mongodb://localhost:27017";
+    return new MongoClient(connectionString);
+});
 builder.Services.AddScoped<ResearchActivityRepository>();
 builder.Services.AddScoped<ResearchActivityService>();
 
@@ -73,7 +115,7 @@ using (var scope = app.Services.CreateScope())
         serviceProvider.GetRequiredService<
             StudentManagementDbContext>();
 
-    await context.Database.MigrateAsync();
+    await context.Database.EnsureCreatedAsync();
 
     // Students must be seeded before Enrolments
     // because Enrolments refer to StudentNumber.
@@ -107,6 +149,12 @@ using (var scope = app.Services.CreateScope())
 
     await ResearchActivityDataSeeder.SeedAsync(
         researchActivityRepository);
+
+    var identitySeeder =
+        serviceProvider.GetRequiredService<
+            AppIdentityDataSeeder>();
+
+    await identitySeeder.SeedAsync();
 }
 
 // Configure the HTTP request pipeline.
@@ -120,6 +168,7 @@ app.UseHttpsRedirection();
 
 app.UseRouting();
 
+app.UseAuthentication();
 app.UseAuthorization();
 
 // .NET 10 static asset endpoints.

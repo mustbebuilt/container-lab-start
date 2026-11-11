@@ -1,9 +1,11 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PgrStudentManagement.Web.Modules.AcademicSupervisors.Models;
 using PgrStudentManagement.Web.Modules.AcademicSupervisors.Services;
 
 namespace PgrStudentManagement.Web.Modules.AcademicSupervisors.Controllers;
 
+[Authorize]
 public class AcademicSupervisorsController : Controller
 {
     private readonly AcademicSupervisorService _academicSupervisorService;

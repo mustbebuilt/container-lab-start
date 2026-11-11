@@ -1,141 +1,63 @@
-using System.Text.Json;
+using MongoDB.Driver;
 using PgrStudentManagement.Web.Modules.ResearchActivities.Models;
 
 namespace PgrStudentManagement.Web.Modules.ResearchActivities.Data;
 
 public class ResearchActivityRepository
 {
-    private const string DefaultRelativeFilePath =
-        "Modules/ResearchActivities/Data/research-activities.json";
+    private const string DefaultConnectionString = "mongodb://localhost:27017";
+    private const string DefaultDatabaseName = "StudentManagement";
+    private const string DefaultCollectionName = "ResearchActivities";
 
-    private static readonly JsonSerializerOptions JsonOptions = new()
+    private readonly IMongoCollection<ResearchActivity> _collection;
+
+    public ResearchActivityRepository(IMongoClient mongoClient, IConfiguration configuration)
     {
-        PropertyNameCaseInsensitive = true,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        WriteIndented = true
-    };
+        var databaseName = configuration["ResearchActivityDatabase:DatabaseName"] ?? DefaultDatabaseName;
+        var collectionName = configuration["ResearchActivityDatabase:CollectionName"] ?? DefaultCollectionName;
 
-    private readonly string _filePath;
-    private readonly List<ResearchActivity> _activities;
-
-    public ResearchActivityRepository(IConfiguration? configuration = null)
-    {
-        var configuredPath = configuration?["ResearchActivityData:FilePath"];
-        _filePath = ResolveFilePath(
-            string.IsNullOrWhiteSpace(configuredPath)
-                ? DefaultRelativeFilePath
-                : configuredPath);
-
-        _activities = LoadActivities(_filePath);
+        var database = mongoClient.GetDatabase(databaseName);
+        _collection = database.GetCollection<ResearchActivity>(collectionName);
     }
 
-    public Task<IReadOnlyList<ResearchActivity>> GetAllAsync()
+    public ResearchActivityRepository(IConfiguration configuration)
     {
-        IReadOnlyList<ResearchActivity> all = _activities
-            .OrderBy(activity => activity.ActivityDate)
-            .ToList();
+        var connectionString = configuration.GetConnectionString("MongoDb")
+            ?? configuration["ResearchActivityDatabase:ConnectionString"]
+            ?? DefaultConnectionString;
+        var databaseName = configuration["ResearchActivityDatabase:DatabaseName"] ?? DefaultDatabaseName;
+        var collectionName = configuration["ResearchActivityDatabase:CollectionName"] ?? DefaultCollectionName;
 
-        return Task.FromResult(all);
+        var client = new MongoClient(connectionString);
+        var database = client.GetDatabase(databaseName);
+        _collection = database.GetCollection<ResearchActivity>(collectionName);
     }
 
-    public Task<IReadOnlyList<ResearchActivity>> GetForStudentAsync(string studentNumber)
+    public async Task<IReadOnlyList<ResearchActivity>> GetAllAsync()
     {
-        IReadOnlyList<ResearchActivity> result = _activities
-            .Where(activity => activity.StudentNumber == studentNumber)
-            .OrderBy(activity => activity.ActivityDate)
-            .ToList();
-
-        return Task.FromResult(result);
+        var cursor = await _collection.FindAsync(_ => true);
+        var activities = await cursor.ToListAsync();
+        return activities.OrderBy(activity => activity.ActivityDate).ToList();
     }
 
-    public Task AddAsync(ResearchActivity activity)
+    public async Task<IReadOnlyList<ResearchActivity>> GetForStudentAsync(string studentNumber)
+    {
+        var filter = Builders<ResearchActivity>.Filter.Eq(a => a.StudentNumber, studentNumber);
+        var cursor = await _collection.FindAsync(filter);
+        var activities = await cursor.ToListAsync();
+        return activities.OrderBy(activity => activity.ActivityDate).ToList();
+    }
+
+    public async Task AddAsync(ResearchActivity activity)
     {
         ArgumentNullException.ThrowIfNull(activity);
 
-        NormalizeDetails(activity);
-        _activities.Add(activity);
-
-        return Task.CompletedTask;
-    }
-
-    private static string ResolveFilePath(string path)
-    {
-        if (Path.IsPathRooted(path))
+        // Check if an activity with this Id already exists to avoid duplicate key exceptions during seeding
+        var filter = Builders<ResearchActivity>.Filter.Eq(a => a.Id, activity.Id);
+        var existing = await _collection.Find(filter).FirstOrDefaultAsync();
+        if (existing is null)
         {
-            return path;
+            await _collection.InsertOneAsync(activity);
         }
-
-        var currentDirCandidate = Path.Combine(Directory.GetCurrentDirectory(), path);
-        if (File.Exists(currentDirCandidate))
-        {
-            return currentDirCandidate;
-        }
-
-        return Path.Combine(AppContext.BaseDirectory, path);
-    }
-
-    private static List<ResearchActivity> LoadActivities(string filePath)
-    {
-        if (!File.Exists(filePath))
-        {
-            return [];
-        }
-
-        var json = File.ReadAllText(filePath);
-        if (string.IsNullOrWhiteSpace(json))
-        {
-            return [];
-        }
-
-        var activities = JsonSerializer.Deserialize<List<ResearchActivity>>(json, JsonOptions)
-            ?? [];
-
-        foreach (var activity in activities)
-        {
-            NormalizeDetails(activity);
-        }
-
-        return activities;
-    }
-
-    private static void NormalizeDetails(ResearchActivity activity)
-    {
-        if (activity.Details is null || activity.Details.Count == 0)
-        {
-            return;
-        }
-
-        var normalized = new Dictionary<string, object>(activity.Details.Count);
-        foreach (var (key, value) in activity.Details)
-        {
-            normalized[key] = ConvertValue(value);
-        }
-
-        activity.Details = normalized;
-    }
-
-    private static object ConvertValue(object value)
-    {
-        if (value is not JsonElement element)
-        {
-            return value;
-        }
-
-        return element.ValueKind switch
-        {
-            JsonValueKind.String => element.GetString() ?? string.Empty,
-            JsonValueKind.Number when element.TryGetInt64(out var intValue) => intValue,
-            JsonValueKind.Number => element.GetDouble(),
-            JsonValueKind.True => true,
-            JsonValueKind.False => false,
-            JsonValueKind.Array => element
-                .EnumerateArray()
-                .Select(item => ConvertValue(item))
-                .ToArray(),
-            JsonValueKind.Object => element
-                .EnumerateObject()
-                .ToDictionary(prop => prop.Name, prop => ConvertValue(prop.Value)),
-            _ => string.Empty
-        };
     }
 }

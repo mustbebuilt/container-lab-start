@@ -47,11 +47,32 @@ public class StudentManagementDbContext : DbContext
         {
             entity.HasKey(student =>
                 student.StudentNumber);
+
+            entity.Property(student => student.StudentNumber)
+                .HasMaxLength(20);
+
+            entity.Property(student => student.FirstName)
+                .HasMaxLength(100);
+
+            entity.Property(student => student.LastName)
+                .HasMaxLength(100);
+
+            entity.Property(student => student.EmailAddress)
+                .HasMaxLength(255);
         });
 
         modelBuilder.Entity<Enrolment>(entity =>
         {
             entity.HasKey(enrolment => enrolment.EnrolmentId);
+
+            entity.Property(enrolment => enrolment.StudentNumber)
+                .HasMaxLength(20);
+
+            entity.Property(enrolment => enrolment.ProgrammeCode)
+                .HasMaxLength(20);
+
+            entity.Property(enrolment => enrolment.ModeOfStudy)
+                .HasMaxLength(20);
 
             entity
             .HasOne(enrolment => enrolment.Student)
@@ -74,13 +95,17 @@ public class StudentManagementDbContext : DbContext
                 entity.ToTable("AcademicSupervisors");
                 entity.HasKey(supervisor => supervisor.StaffNumber);
                 entity.Property(supervisor => supervisor.StaffNumber)
-                    .IsRequired();
+                    .IsRequired()
+                    .HasMaxLength(20);
 
-                entity.Property(supervisor => supervisor.FirstName);
-                entity.Property(supervisor => supervisor.LastName);
+                entity.Property(supervisor => supervisor.FirstName)
+                    .HasMaxLength(100);
+                entity.Property(supervisor => supervisor.LastName)
+                    .HasMaxLength(100);
 
                 entity.Property(supervisor => supervisor.EmailAddress)
-                    .IsRequired();
+                    .IsRequired()
+                    .HasMaxLength(255);
 
                 entity.HasMany(supervisor => supervisor.EligibleRoleEntries)
                     .WithOne(eligibleRole =>
@@ -102,8 +127,12 @@ public class StudentManagementDbContext : DbContext
                     eligibleRole.Role
                 });
 
+                entity.Property(eligibleRole => eligibleRole.SupervisorStaffNumber)
+                    .HasMaxLength(20);
+
                 entity.Property(eligibleRole => eligibleRole.Role)
                     .HasConversion<string>()
+                    .HasMaxLength(50)
                     .IsRequired();
             });
 
@@ -120,8 +149,15 @@ public class StudentManagementDbContext : DbContext
                     assignment.StartDate
                 });
 
+                entity.Property(assignment => assignment.StudentNumber)
+                    .HasMaxLength(20);
+
+                entity.Property(assignment => assignment.SupervisorStaffNumber)
+                    .HasMaxLength(20);
+
                 entity.Property(assignment => assignment.Role)
-                    .HasConversion<string>();
+                    .HasConversion<string>()
+                    .HasMaxLength(50);
 
                 entity.HasOne<Student>()
                     .WithMany()

@@ -136,9 +136,14 @@ dotnet test
 
 ---
 
-### 5. Containerisation Lab
+### 5. Containerisation & Orchestration Labs
 
-This repository forms the basis for the containerisation lab. Use the step-by-step instructions in [LabResources/lab-instructions.md](LabResources/lab-instructions.md) to containerise the application.
-
-- **College Lab PCs (Default)**: Access Docker via a cloud development VM at [https://devportal.microsoft.com/](https://devportal.microsoft.com/) (eliminates local administrator permission barriers).
-- **Personal Laptops (Alternative)**: Run Docker Desktop natively on macOS.
+- **Core Lab — Containerising with Docker & Docker Compose**: [`LabResources/lab-instructions.md`](LabResources/lab-instructions.md)
+  - **Environment Options**: Setup via Microsoft Dev Portal VM ([https://devportal.microsoft.com/](https://devportal.microsoft.com/)) on Windows AMD64 or native macOS.
+  - **Concepts**: Docker Images vs. Containers, port mapping, bridge networks, and volume persistence.
+  - **Multi-Service Extraction**: Extracting MySQL, PostgreSQL (Identity), and MongoDB into isolated containers.
+  - **Docker Compose**: Orchestration, health checks, dependency management, and environment variable overrides.
+- **Bonus Lab — Horizontal Scaling with Kubernetes & MiniKube**: [`LabResources/bonus-lab-minikube-scaling.md`](LabResources/bonus-lab-minikube-scaling.md)
+  - **Case Study**: Scaling the stateless ASP.NET Core web tier during the **annual PhD application deadline surge**.
+  - **Kubernetes Architecture**: Pods, Deployments, ClusterIP & NodePort Services, and PersistentVolumeClaims.
+  - **Hands-On Scaling & Self-Healing**: Scaling from 1 $\rightarrow$ 5 replicas, observing traffic load distribution, and simulating container crash self-healing.

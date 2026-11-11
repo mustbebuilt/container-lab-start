@@ -1,8 +1,8 @@
-# Lab 1: Containerising the Multi-Service PGR System with Docker & Preparing for MiniKube
+# Lab: Containerising the Multi-Service PGR System with Docker
 
 ## Overview
 
-The files in the gitlab repository build a multi-container asp.net core application.  Along with the application (that uses a Modular Monolith architecture) there are three databases, postgres, mysql and mongodb.  You will see from the application and database code that the application uses EF Core to persist data in both postgres and mysql, and uses the mongo driver to persist data in mongodb. 
+The files in the gitlab repository build a multi-container asp.net core application. Along with the application (that uses a Modular Monolith architecture) there are three databases: postgres, mysql and mongodb. You will see from the application and database code that the application uses EF Core to persist data in both postgres and mysql, and uses the mongo driver to persist data in mongodb.
 
 - The ASP.NET Core web application ran on your host operating system (`localhost:5277`).
 - Relational domain data was stored in a host **MySQL** database (`localhost:3306`).
@@ -13,9 +13,9 @@ While running services directly on your host machine is convenient during early 
 - **"It works on my machine" syndrome**: Differences in OS versions, database patches, system libraries, and local configurations.
 - **Dependency bloat**: Installing and maintaining three separate database engines on your development workstation.
 - **Port conflicts & environment pollution**: Running multiple projects that require different versions of MySQL or PostgreSQL.
-- **No path to cloud deployment**: Modern production environments deploy applications as self-contained images into container orchestrators such as **Kubernetes**.
+- **No path to cloud deployment**: Modern production environments deploy applications as self-contained images into container orchestrators.
 
-In this lab, you will **containerise** this entire multi-service application using **Docker** and **Docker Compose**, establishing the foundation for deploying into a local Kubernetes cluster with **MiniKube**.
+In this lab, you will **containerise** this entire multi-service application using **Docker** and **Docker Compose**. Once complete, an optional [Bonus Lab](./bonus-lab-minikube-scaling.md) explores deploying and horizontally scaling the application in **Kubernetes** using **MiniKube**.
 
 ```
 +---------------------------------------------------------------------------------------+
@@ -54,15 +54,14 @@ In this lab, you will **containerise** this entire multi-service application usi
 ## Learning Objectives
 
 By the end of this lab, you will be able to:
-1. **Install, configure, and verify Docker Desktop** on your development machine.
-2. **Understand the Docker architecture**: images, containers, the daemon, registries, bridge networks, and volumes.
+1. **Install, configure, and verify Docker Desktop** on your development machine (Dev Portal VM or macOS).
+2. **Master the core distinction between Docker Images and Containers**.
 3. **Extract host-installed database engines into isolated Docker containers** (PostgreSQL, MySQL, and MongoDB) using `docker run` and explicit bridge networking.
 4. **Author an optimized, secure multi-stage `Dockerfile`** for a modern ASP.NET Core web application (.NET 10).
 5. **Implement `.dockerignore`** to optimize image build contexts and avoid host file leaks.
 6. **Master Docker container networking and service discovery**: understand why `localhost` changes to container hostnames.
 7. **Orchestrate the entire multi-service stack with Docker Compose (`docker-compose.yml`)**, incorporating container health checks, dependency management, and environment variable overrides.
 8. **Verify persistent storage across container lifecycles** using Docker named volumes.
-9. **Understand the transition from Docker Compose to Kubernetes & MiniKube** (Pods, Deployments, Services, ConfigMaps, and PVCs).
 
 ---
 
@@ -220,12 +219,65 @@ In the previous exercise, your application was configured with three local datab
 | **PostgreSQL** | Host OS process | `identity` | `5432` | ASP.NET Core Identity authentication & roles |
 | **MongoDB** | Host OS process | `StudentManagement` | `27017` | Research activity documents |
 
-### 2.2 The Three Fundamental Container Concepts You Must Know
+### 2.2 Image vs. Container: Understanding the Core Difference
+
+One of the most essential concepts to master in Docker is the distinction between an **Image** and a **Container**. If you have ever wondered why an image appears in your image list but isn't serving web traffic, or why you can have multiple containers running from one single image, this distinction is key:
+
+| Analogy | Docker Image (Blueprint / Template) | Docker Container (Live Runtime Instance) |
+| :--- | :--- | :--- |
+| **Object-Oriented Programming** | `Class` (the type definition) | `Object` instance in memory (created with `new`) |
+| **Cooking & Baking** | Recipe printed in a cookbook | Active dish cooking in the oven |
+| **Building Construction** | Architectural blueprint on paper | Physical building you can walk inside |
+| **Operating Systems** | `.exe` or executable binary on disk | Active process with a PID in Task Manager |
+
+#### What is an Image?
+- An **Image** is an **immutable, read-only snapshot or package** that contains everything required to run your service: base OS files (e.g. Alpine Linux), system libraries, runtime engines (e.g. .NET 10 Runtime), environment configurations, and compiled application binaries.
+- Images are built once using a `Dockerfile` (`docker build`) or pulled from a registry like Docker Hub (`docker pull mysql:9.0`).
+- An image is static on disk and **never executes code on its own**. It consumes zero CPU and zero active RAM.
+- You can inspect your available local images at any time with:
+  ```bash
+  docker images
+  ```
+
+#### What is a Container?
+- A **Container** is an **isolated, running process instance** instantiated from an image using `docker run` or `docker compose up`.
+- When Docker creates a container from an image, it provisions:
+  1. An active process tree with isolated Linux namespaces (Process IDs, network stack, filesystem mount points).
+  2. Its own private virtual network interface and internal IP address.
+  3. A thin, temporary **Read-Write layer** on top of the image's immutable read-only layers. Any file modifications, database writes, or logs created during execution live in this layer.
+- **One Image $\rightarrow$ Multiple Containers:** You can spin up as many independent containers as needed from a single image. For instance, from the single `pgr-student-management:1.0` image, you could run three identical web instances (`web-1`, `web-2`, and `web-3`) concurrently!
+- You can inspect active containers with:
+  ```bash
+  docker ps
+  ```
+
+```
++-------------------------------------------------------------------------------+
+|                                 DOCKER IMAGE                                  |
+|                    (Immutable, Read-Only Template on Disk)                    |
+|       [ Base Linux OS ]  -->  [ .NET 10 Runtime ]  -->  [ Compiled App ]       |
++-------------------------------------------------------------------------------+
+                       |                                   |
+                 docker run                          docker run
+                       |                                   |
+                       v                                   v
++---------------------------------------------+ +---------------------------------------------+
+|                CONTAINER 1                  | |                CONTAINER 2                  |
+| [ Read-Write Ephemeral Layer (Writes/Logs) ]| | [ Read-Write Ephemeral Layer (Writes/Logs) ]|
+| [ Read-Only Image Layers (Shared)          ]| | [ Read-Only Image Layers (Shared)          ]|
+| Isolated Process Space (PID 1420)           | | Isolated Process Space (PID 1890)           |
+| Virtual Network IP: 172.18.0.4              | | Virtual Network IP: 172.18.0.5              |
++---------------------------------------------+ +---------------------------------------------+
+```
+
+---
+
+### 2.3 Critical Container Concepts: Networking, Storage & Configuration
 
 Before writing commands, understand these three critical container primitives:
 
 #### 1. The `localhost` Trap (Container Isolation)
-Inside a container, `localhost` (or `127.0.0.1`) refers **only to that specific container itself**, NOT to your Mac or Windows host machine, and NOT to other containers!
+Inside a container, `localhost` (or `127.0.0.1`) refers **only to that specific container itself**, NOT to your host machine, and NOT to other containers!
 - When your web application runs inside a container, connecting to `localhost:3306` fails because there is no MySQL service running inside the *web* container.
 - To communicate, containers must join a **shared Docker network** and address each other by their **container names** (e.g. `Server=mysql-db;Port=3306...`).
 
@@ -681,61 +733,22 @@ Execute the following verification tasks to validate your containerised solution
 
 ---
 
-## Part 7: Looking Ahead to MiniKube & Kubernetes
+## Summary & Key Takeaways
 
-Now that your application is fully containerised, you are prepared for the next evolution: **Kubernetes orchestration with MiniKube**.
-
-### 7.1 How Docker Compose Maps to Kubernetes
-
-When you move from Docker Compose to Kubernetes, the concepts map directly:
-
-| Docker Compose Concept | Kubernetes Concept | Purpose |
-| :--- | :--- | :--- |
-| `container` | **Pod** | Smallest deployable unit of computing in Kubernetes (one or more containers). |
-| `service` (web, mysql) | **Deployment** | Manages replica sets, declarative updates, health restarts, and rollbacks. |
-| `ports: "5277:8080"` | **Service (ClusterIP / NodePort / LoadBalancer)** | Provides stable networking and DNS endpoints inside the cluster. |
-| `environment:` | **ConfigMap** & **Secret** | Decouples configuration (URLs) and sensitive credentials (passwords) from images. |
-| `volumes:` | **PersistentVolumeClaim (PVC)** | Requests durable, cluster-managed storage volumes for stateful databases. |
-
-### 7.2 Initializing MiniKube Preview
-
-In the upcoming lab session, you will use **MiniKube** to run a local single-node Kubernetes cluster.
-
-To prepare your environment:
-
-1. **Install MiniKube and `kubectl`:**
-   - **macOS**: `brew install minikube kubectl`
-   - **Windows**: `winget install Kubernetes.minikube` & `winget install Kubernetes.kubectl`
-   - **Linux**: See [minikube.sigs.k8s.io/docs/start](https://minikube.sigs.k8s.io/docs/start/)
-
-2. **Start the MiniKube cluster using the Docker driver:**
-   ```bash
-   minikube start --driver=docker --cpus=4 --memory=6144
-   ```
-
-3. **Verify cluster connectivity:**
-   ```bash
-   kubectl cluster-info
-   kubectl get nodes
-   ```
-
-4. **Point your local Docker CLI to MiniKube's internal Docker daemon:**
-   ```bash
-   # On macOS / Linux:
-   eval $(minikube docker-env)
-
-   # On Windows PowerShell:
-   & minikube -p minikube docker-env --shell powershell | Invoke-Expression
-   ```
-   *This powerful command allows you to build images directly inside MiniKube without needing to push to a remote registry like Docker Hub!*
+1. **Host Isolation**: By containerising MySQL, PostgreSQL, and MongoDB, you eliminated the need to install or maintain host database servers.
+2. **Reproducibility**: Any student or developer on the Dev Portal VM or macOS can clone this repository and run `docker compose up -d` to get an identical, working environment in seconds.
+3. **Multi-Stage Builds**: Multi-stage `Dockerfile` practices keep production images small (~250MB vs ~1GB), fast to download, and secure.
+4. **Resilient Orchestration**: Health checks and bridge networking ensure reliable inter-service communication and database readiness.
+5. **Persistence**: Docker named volumes ensure your relational and NoSQL databases survive container restarts and rebuilds.
 
 ---
 
-## Summary & Key Takeaways
+## Next Steps: Bonus Lab — Scaling with Kubernetes & MiniKube
 
-1. **Host Isolation**: By containerising MySQL, PostgreSQL, and MongoDB, you eliminated the need to maintain host database servers.
-2. **Reproducibility**: Any student or developer on macOS, Windows, or Linux can clone this repository and run `docker compose up -d` to get an identical, working environment in seconds.
-3. **Multi-Stage Builds**: Multi-stage `Dockerfile` practices keep production images small, fast, and secure.
-4. **Resilient Orchestration**: Health checks and bridge networking ensure reliable inter-service communication.
-5. **Kubernetes-Ready**: Your application is now packaged as cloud-native container images ready for deployment into Kubernetes via MiniKube.
+Now that your application is fully containerised and orchestrated with Docker Compose, you are ready to explore cloud-native container orchestration!
+
+Proceed to the [**Bonus Lab: Scaling the PGR System with Kubernetes & MiniKube**](./bonus-lab-minikube-scaling.md) to learn how to:
+- Install and configure **MiniKube** and `kubectl`.
+- Convert Docker Compose services into Kubernetes **Pods**, **Deployments**, **Services**, and **PersistentVolumeClaims**.
+- **Case Study**: Horizontally scale the stateless web tier to handle peak application submission surges during the annual PhD admissions intake window.
 

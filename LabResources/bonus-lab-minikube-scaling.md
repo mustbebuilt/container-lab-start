@@ -147,36 +147,38 @@ minikube   Ready    control-plane   1m    v1.32.x
 
 ---
 
-## Part 3: Sharing the Docker Environment (Zero-Registry Workflow)
+## Part 3: Loading Your Image into MiniKube (`minikube image load`)
 
 In production, Kubernetes pulls images from cloud registries (like Docker Hub or Azure Container Registry). In local development, pushing a 250MB image across the internet just to pull it back down to your own machine is slow and requires account credentials.
 
-MiniKube includes a built-in Docker daemon! By configuring your local terminal to point to MiniKube's internal Docker daemon, any image you build locally is **immediately available inside Kubernetes without pushing to a registry**.
+Instead of needing remote registries or complex shell redirection, MiniKube provides a dedicated, native command to transfer images directly from Docker Desktop into MiniKube: **`minikube image load`**.
 
-Run the environment configuration command in your current terminal:
+### 3.1 Build Your Image with Docker Desktop
+First, make sure your application image is built locally using standard Docker Desktop (run this from your repository root):
 
-- **On Windows PowerShell (Dev Portal VM):**
-  ```powershell
-  & minikube -p minikube docker-env --shell powershell | Invoke-Expression
-  ```
-
-- **On macOS / Linux (Terminal):**
-  ```bash
-  eval $(minikube docker-env)
-  ```
-
-Now build your application image inside MiniKube:
 ```bash
 docker build -t pgr-student-management:1.0 .
 ```
 
-Verify the image exists inside MiniKube's local cache:
+### 3.2 Load the Image Directly into MiniKube
+Now, transfer the image into MiniKube with a single command:
+
 ```bash
-docker images pgr-student-management
+minikube image load pgr-student-management:1.0
 ```
 
+### 3.3 Verify the Image is in MiniKube
+Confirm that MiniKube has received the image:
+
+```bash
+minikube image ls --format table
+```
+*(On Windows PowerShell, you can also filter with: `minikube image ls | Select-String pgr`).*
+
+You should see `docker.io/library/pgr-student-management:1.0` in the output!
+
 > [!TIP]
-> Notice the flag `imagePullPolicy: IfNotPresent` in Kubernetes manifests. This tells Kubernetes: *"If the image `pgr-student-management:1.0` is already in the local cache, use it directly without attempting to query Docker Hub!"*
+> Notice the flag `imagePullPolicy: IfNotPresent` in our Kubernetes manifests (`k8s/pgr-web.yaml`). This tells Kubernetes: *"Since `pgr-student-management:1.0` was loaded into MiniKube's local cache, use it immediately without attempting to download from Docker Hub!"*
 
 ---
 
@@ -581,17 +583,7 @@ When you have finished the lab:
    minikube stop
    ```
 
-3. **Revert your terminal back to Docker Desktop (if you ran `minikube docker-env`):**
-   - **PowerShell:**
-     ```powershell
-     Remove-Item env:DOCKER_HOST -ErrorAction SilentlyContinue
-     Remove-Item env:DOCKER_CERT_PATH -ErrorAction SilentlyContinue
-     Remove-Item env:DOCKER_TLS_VERIFY -ErrorAction SilentlyContinue
-     ```
-   - **macOS / Linux:**
-     ```bash
-     eval $(minikube docker-env -u)
-     ```
+Because we used `minikube image load` instead of overriding terminal environment variables, your PowerShell/Terminal session remains cleanly attached to Docker Desktop with zero clean-up required!
 
 ---
 

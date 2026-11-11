@@ -80,14 +80,30 @@ In Kubernetes:
 - **kubectl**: The official command-line tool used to communicate with the Kubernetes API server and control the cluster.
 - **MiniKube**: An official Kubernetes tool that sets up an optimized, single-node Kubernetes cluster inside a local container or virtual machine on your computer.
 
-### 1.2 Installation Instructions
+### 1.2 Installation & PATH Setup on the Dev Portal VM (Windows AMD64)
 
-#### On the Microsoft Dev Portal VM (Windows AMD64 — Default):
-Open **PowerShell** as Administrator (or standard user) and run:
-```powershell
-winget install -e --id Kubernetes.minikube
-winget install -e --id Kubernetes.kubectl
-```
+On the Microsoft Dev Portal VM, your user directory is `C:\Users\student` (`$HOME`). When installed or downloaded, `minikube.exe` and `kubectl.exe` reside in `C:\Users\student`. Because Windows does not look in user home folders by default, you must add `C:\Users\student` to your Windows PATH:
+
+1. **Install or Download MiniKube and `kubectl`:**
+   In PowerShell, run:
+   ```powershell
+   winget install -e --id Kubernetes.minikube
+   winget install -e --id Kubernetes.kubectl
+   ```
+   *(Or if downloaded directly into `C:\Users\student`, ensure `minikube.exe` and `kubectl.exe` are present).*
+
+2. **Add `C:\Users\student` (`$HOME`) to Your PATH:**
+   In PowerShell, run these two commands to register `C:\Users\student` for the current session and permanently for future sessions:
+   ```powershell
+   $env:Path += ";$HOME"
+   [Environment]::SetEnvironmentVariable("Path", [Environment]::GetEnvironmentVariable("Path", "User") + ";$HOME", "User")
+   ```
+
+> [!TIP]
+> **Why is this necessary?**
+> Windows only recognizes commands without their full file path (like `minikube` instead of `C:\Users\student\minikube.exe`) if the folder containing the `.exe` is listed in your system or user `PATH` environment variable. The command above permanently registers `C:\Users\student` so you can run `minikube` and `kubectl` from anywhere in your project workspace!
+
+---
 
 #### On Personal Mac (macOS — Alternative):
 Open **Terminal** and run:
@@ -95,12 +111,16 @@ Open **Terminal** and run:
 brew install minikube kubectl
 ```
 
+---
+
 ### 1.3 Verify Installation
 In your terminal, confirm both CLI tools are accessible:
 ```bash
 minikube version
 kubectl version --client
 ```
+
+Both commands should now output their respective version strings (e.g. `minikube version: v1.35.x` and `Client Version: v1.32.x`).
 
 ---
 

@@ -1,6 +1,8 @@
-# Postgraduate Research (PGR) Student Management System
+# Containerising the Postgraduate Research (PGR) Student Management System
 
-A modular ASP.NET Core web application demonstrating a **modular monolith** architecture for managing Postgraduate Research (PGR) students, academic supervisory teams, PhD admissions, and student research activities.
+This code base is a ASP.NET Core web application demonstrating a **modular monolith** architecture for managing Postgraduate Research (PGR) students, academic supervisory teams, PhD admissions, and student research activities.
+
+**In this lab we will use Docker to build containers for the deployment of the application. This will require the use of Virtual Machines if you do not have access to Docker. We will provide details on how to access these in the lab session**.
 
 ---
 
@@ -19,17 +21,20 @@ PgrStudentManagement.Web/Modules/
 ```
 
 ### 1. Students Module ([`Modules/Students`](./PgrStudentManagement.Web/Modules/Students))
+
 - Handles student records, programme enrolments, mode of study, and progression milestones (thesis titles, expected dates, submissions).
 - **Persistence**: Relational SQLite database (`student-management.db`) via Entity Framework Core (`Students` and `Enrolments` tables).
 - **Public Contract**: Exposes `IStudentLookup` (returning `StudentSummary`), allowing other modules to verify student existence and full names without coupling to the `Students` persistence schema.
 
 ### 2. Academic Supervisors Module ([`Modules/AcademicSupervisors`](./PgrStudentManagement.Web/Modules/AcademicSupervisors))
+
 - Manages supervisor records, role eligibility (Director of Studies, First Supervisor, Second Supervisor, Adviser), and supervisory team assignments.
 - Enforces institutional rules (e.g. Director of Studies must be institution-employed, maximum supervisor thresholds, single DoS/First Supervisor per student).
 - **Persistence**: Relational SQLite database via EF Core (`AcademicSupervisors`, `AcademicSupervisorEligibleRoles`, `SupervisoryAssignments`).
 - **Public Contract**: Exposes `ISupervisorLookup` (returning `SupervisorSummary`), allowing other modules to look up supervisor names and check Main Supervisor eligibility.
 
 ### 3. PhD Applications Module ([`Modules/PhdApplications`](./PgrStudentManagement.Web/Modules/PhdApplications))
+
 - **Purpose**: Manages the admissions intake and proposal evaluation pipeline for prospective PhD candidates before they become enrolled students.
 - **Domain Model (`PhdApplication`)**:
   - **Identity**: Natural primary key `ApplicationReference` (e.g. `APP-2026-001`).
@@ -47,6 +52,7 @@ PgrStudentManagement.Web/Modules/
 - **UI / UX & Accessibility Starting Point**: The module's starter views ([`Create.cshtml`](./PgrStudentManagement.Web/Views/PhdApplications/Create.cshtml) and [`EditStatus.cshtml`](./PgrStudentManagement.Web/Views/PhdApplications/EditStatus.cshtml)) are intentionally stripped of form validation and defaulted to plain text inputs, providing a real-world scenario for students to practice modern UI/UX, input types, and accessible form design (see [Lab Resources](#lab-resources-ui--ux-and-accessibility)).
 
 ### 4. Research Activities Module ([`Modules/ResearchActivities`](./PgrStudentManagement.Web/Modules/ResearchActivities))
+
 - Tracks student research activities, conference presentations, published papers, and research milestones.
 - **Persistence**: Stored in a NoSQL **MongoDB** database (`StudentManagement` database, `ResearchActivities` collection).
 
@@ -57,6 +63,7 @@ PgrStudentManagement.Web/Modules/
 The application uses **MySQL** for relational domain models, **PostgreSQL** for ASP.NET Core Identity authentication and authorization, and **MongoDB** for flexible semi-structured research activity documents.
 
 ### 1. MySQL Domain Relational Database (`student_management_db`)
+
 - **Connection**: `Server=localhost;Port=3306;Database=student_management_db;User=root;Password=pass1234%uZ;` (configured in `appsettings.json` under `ConnectionStrings:StudentManagementDatabase`).
 - **Tables**:
   - `Students`: Core student demographic and research milestone records.
@@ -68,6 +75,7 @@ The application uses **MySQL** for relational domain models, **PostgreSQL** for 
 - **Automatic Schema Creation & Seeding**: When the application boots, `Program.cs` automatically invokes `context.Database.EnsureCreatedAsync()`, ensuring all schema tables are created and seeded if they do not yet exist.
 
 ### 2. PostgreSQL Identity Database (`identity`)
+
 - **Connection**: `Host=localhost;Port=5432;Database=identity;Username=identity;Password=identity$` (configured in `appsettings.json` under `ConnectionStrings:IdentityDatabase`).
 - **Purpose**: Backing store for ASP.NET Core Identity, securing the **Academic Supervisors** module with authentication and role-based authorization.
 - **Tables**: Standard EF Core Identity tables (`AspNetUsers`, `AspNetRoles`, `AspNetUserRoles`, `AspNetUserClaims`, `AspNetUserLogins`, `AspNetUserTokens`, `AspNetRoleClaims`).
@@ -77,6 +85,7 @@ The application uses **MySQL** for relational domain models, **PostgreSQL** for 
   - (Referenced in [`credentials.md`](./credentials.md))
 
 ### 3. MongoDB Research Activities Database (`StudentManagement`)
+
 - **Connection**: `mongodb://localhost:27017` (configured in `appsettings.json` under `ConnectionStrings:MongoDb` and `ResearchActivityDatabase`).
 - **Database**: `StudentManagement`
 - **Collection**: `ResearchActivities`
@@ -88,33 +97,44 @@ The application uses **MySQL** for relational domain models, **PostgreSQL** for 
 ## How to Run the Application
 
 ### 1. Prerequisites
+
 Ensure your local database instances are running:
+
 - **MySQL Server** on `localhost:3306` with database `student_management_db` accessible by user `root`.
 - **PostgreSQL Server** (e.g., Postgres.app) on `localhost:5432` with database `identity` accessible by user `identity`.
 - **MongoDB Server** on `localhost:27017` with database `StudentManagement`.
 
 ### 2. Build the Solution
+
 From the repository root:
+
 ```bash
 dotnet build
 ```
 
 ### 3. Run the Web Project
+
 Launch the web application:
+
 ```bash
 dotnet run --project PgrStudentManagement.Web
 ```
+
 Or with hot reload:
+
 ```bash
 dotnet watch --project PgrStudentManagement.Web
 ```
 
 By default, the application listens on:
+
 - HTTP: `http://localhost:5277`
 - HTTPS: `https://localhost:7178`
 
 ### 4. Application Startup Sequence
+
 When [PgrStudentManagement.Web/Program.cs](PgrStudentManagement.Web/Program.cs) executes:
+
 1. **Service Registration**: Registers MVC controllers, MySQL EF Core `StudentManagementDbContext`, PostgreSQL EF Core `AppIdentityDbContext`, ASP.NET Core Identity services, DAOs, repositories, and cross-module services (`IStudentLookup`, `ISupervisorLookup`).
 2. **Database Provisioning**:
    - Creates and updates MySQL domain schema via `context.Database.EnsureCreatedAsync()`.
@@ -129,7 +149,9 @@ When [PgrStudentManagement.Web/Program.cs](PgrStudentManagement.Web/Program.cs) 
 4. **Middleware Pipeline**: Configures routing, `app.UseAuthentication()`, `app.UseAuthorization()`, and static assets.
 
 ### 4. Running the Tests
+
 To run unit and integration tests across all modules:
+
 ```bash
 dotnet test
 ```

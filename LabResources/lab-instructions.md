@@ -1,8 +1,10 @@
 # Lab: Containerising the Multi-Service PGR System with Docker
 
+**In this lab we will use Docker to build containers for the deployment of the application. This will require the use of Virtual Machines if you do not have access to Docker. We will provide details on how to access these in the lab session**.
+
 ## Overview
 
-The files in the gitlab repository build a multi-container asp.net core application. Along with the application (that uses a Modular Monolith architecture) there are three databases: postgres, mysql and mongodb. You will see from the application and database code that the application uses EF Core to persist data in both postgres and mysql, and uses the mongo driver to persist data in mongodb.
+The files in the GitHub repository build a multi-container asp.net core application. Along with the application (that uses a Modular Monolith architecture) there are three databases: postgres, mysql and mongodb. You will see from the application and database code that the application uses EF Core to persist data in both postgres and mysql, and uses the mongo driver to persist data in mongodb.
 
 - The ASP.NET Core web application ran on your host operating system (`localhost:5277`).
 - Relational domain data was stored in a host **MySQL** database (`localhost:3306`).
@@ -10,6 +12,7 @@ The files in the gitlab repository build a multi-container asp.net core applicat
 - Semi-structured research activities were stored in a host **MongoDB** document database (`localhost:27017`).
 
 While running services directly on your host machine is convenient during early development, it introduces significant real-world challenges:
+
 - **"It works on my machine" syndrome**: Differences in OS versions, database patches, system libraries, and local configurations.
 - **Dependency bloat**: Installing and maintaining three separate database engines on your development workstation.
 - **Port conflicts & environment pollution**: Running multiple projects that require different versions of MySQL or PostgreSQL.
@@ -54,6 +57,7 @@ In this lab, you will **containerise** this entire multi-service application usi
 ## Learning Objectives
 
 By the end of this lab, you will be able to:
+
 1. **Install, configure, and verify Docker Desktop** on your development machine (Dev Portal VM or macOS).
 2. **Master the core distinction between Docker Images and Containers**.
 3. **Extract host-installed database engines into isolated Docker containers** (PostgreSQL, MySQL, and MongoDB) using `docker run` and explicit bridge networking.
@@ -89,14 +93,14 @@ If you are working on a college lab PC (or any computer where you do not have ad
 
 2. **Access Your Assigned Dev Box (Virtual Machine):**
    - On the Dev Portal dashboard, locate your project workspace and the **Dev Box** provisioned for this module.
-   - If your Dev Box is currently *Stopped*, click **Start** and allow 1–2 minutes for the virtual machine to boot.
+   - If your Dev Box is currently _Stopped_, click **Start** and allow 1–2 minutes for the virtual machine to boot.
 
 3. **Connect to the Dev Box:**
    - **Method 1 (Browser Web Client — Fastest):** Click **Open in browser**. A full interactive Windows desktop session will open directly inside your browser tab.
    - **Method 2 (Remote Desktop / Windows App):** Click the drop-down next to Open and select **Open in Remote Desktop app** or **Open in Windows App** for a full-screen, multi-monitor client experience.
 
 4. **Verify System Architecture in PowerShell:**
-   - Inside the Dev Box, open **PowerShell** (search for *PowerShell* in the Start Menu).
+   - Inside the Dev Box, open **PowerShell** (search for _PowerShell_ in the Start Menu).
    - Check the VM processor architecture by running:
      ```powershell
      $env:PROCESSOR_ARCHITECTURE
@@ -105,12 +109,13 @@ If you are working on a college lab PC (or any computer where you do not have ad
 
 5. **Install Docker Desktop (AMD64):**
    The Dev Box VM comes with administrator privileges, but Docker Desktop is not pre-installed. Choose either of the following methods to install it:
-
    - **Method 1 (Recommended — Quickest via winget):**
      In PowerShell, execute the Windows Package Manager command:
+
      ```powershell
      winget install -e --id Docker.DockerDesktop
      ```
+
      Press `Y` to accept the license agreements if prompted. Wait for the installer to download and run.
 
    - **Method 2 (Direct Installer Download):**
@@ -121,6 +126,7 @@ If you are working on a college lab PC (or any computer where you do not have ad
    > [!IMPORTANT]
    > **Critical Installer Configuration Options:**
    > During installation (or in the installer dialog), ensure you select the following options:
+   >
    > 1. Select **All Users Installation (Requires Password)** (installs for all users on the machine).
    > 2. Ensure **WSL 2** is selected (Use WSL 2 instead of Hyper-V).
    > 3. Once installation completes, click **Close and restart** (to reboot the Dev Box and register the WSL 2 subsystem).
@@ -131,7 +137,7 @@ If you are working on a college lab PC (or any computer where you do not have ad
      ```powershell
      wsl.exe --update
      ```
-     *(This ensures the latest WSL 2 Linux kernel is installed so the Docker engine can start reliably).*
+     _(This ensures the latest WSL 2 Linux kernel is installed so the Docker engine can start reliably)._
 
 7. **Launch and Initialise Docker Desktop:**
    - Open the **Start Menu**, search for **Docker Desktop**, and launch it.
@@ -139,18 +145,21 @@ If you are working on a college lab PC (or any computer where you do not have ad
    - Wait until the status bar in the bottom-left corner of Docker Desktop turns green: **"Engine running"** (or the Docker whale icon in the system tray shows active).
 
 8. **Open Native PowerShell (Not the VS Code Terminal):**
+
    > [!IMPORTANT]
    > **Always Use Native PowerShell (or Windows Terminal) Directly:**
    > Run all CLI commands throughout this lab in a standalone **PowerShell** window (or **Windows Terminal**) launched directly from the Windows Start Menu, **not** inside the integrated terminal pane in VS Code.
-   > 
+   >
    > **Why avoid VS Code's integrated terminal?**
+   >
    > - **Stale Environment Variables:** VS Code caches the `$env:Path` from when it was launched. After installing Docker or updating WSL, VS Code's terminal will **not** detect the new tools and will report `'docker: command not found'`.
    > - **Shell Profile Confusion:** VS Code often defaults new terminal tabs to `cmd.exe` (Command Prompt) or `Git Bash`, causing PowerShell commands and variable expansions to fail with syntax errors.
    > - **Interactive Output Glitches:** Interactive CLI tools (such as Docker download progress bars or WSL status prompts) can freeze or glitch inside embedded IDE terminal buffers.
-   > 
+   >
    > **Recommended Workflow:** Keep **VS Code** open for viewing and editing code, Dockerfiles, and compose files, while keeping a dedicated native **PowerShell** window running alongside it for all terminal operations.
 
    In your native PowerShell window, navigate to your workspace directory and clone the repository:
+
    ```powershell
    git clone <your-repository-url>
    cd container-lab-start
@@ -197,14 +206,17 @@ docker run --rm hello-world
 ```
 
 If you see the message:
+
 ```text
 Hello from Docker!
 This message shows that your installation appears to be working correctly.
 ```
+
 Your Docker engine is active, your user account has container execution permissions, and you are ready to begin containerising the multi-database stack!
 
 > [!NOTE]
 > **What did `docker run --rm hello-world` do behind the scenes?**
+>
 > 1. The **Docker client** contacted the **Docker daemon**.
 > 2. The daemon checked its local image cache; because `hello-world:latest` was not found locally, it pulled the image from **Docker Hub**.
 > 3. The daemon created a new container from that image and executed its default executable (`/hello`).
@@ -213,7 +225,7 @@ Your Docker engine is active, your user account has container execution permissi
 
 > [!TIP]
 > **One-Line CLI Commands:**
-> All Docker CLI commands in this guide are formatted as single continuous lines without backslashes (`\`) or backticks (``` ` ```). This makes them easy to copy and paste directly into PowerShell on the Dev Box VM or Terminal on macOS without line-break or syntax errors.
+> All Docker CLI commands in this guide are formatted as single continuous lines without backslashes (`\`) or backticks (`` ` ``). This makes them easy to copy and paste directly into PowerShell on the Dev Box VM or Terminal on macOS without line-break or syntax errors.
 
 ---
 
@@ -223,25 +235,26 @@ Your Docker engine is active, your user account has container execution permissi
 
 In the previous exercise, your application was configured with three local database instances:
 
-| Service | Host Location | Database Name | Default Port | Purpose |
-| :--- | :--- | :--- | :--- | :--- |
-| **ASP.NET Core Web** | Host OS process | N/A | `5277` (HTTP) | Web frontend & modular domain logic |
-| **MySQL** | Host OS process | `student_management_db` | `3306` | Students, Supervisors, Enrolments, Applications |
-| **PostgreSQL** | Host OS process | `identity` | `5432` | ASP.NET Core Identity authentication & roles |
-| **MongoDB** | Host OS process | `StudentManagement` | `27017` | Research activity documents |
+| Service              | Host Location   | Database Name           | Default Port  | Purpose                                         |
+| :------------------- | :-------------- | :---------------------- | :------------ | :---------------------------------------------- |
+| **ASP.NET Core Web** | Host OS process | N/A                     | `5277` (HTTP) | Web frontend & modular domain logic             |
+| **MySQL**            | Host OS process | `student_management_db` | `3306`        | Students, Supervisors, Enrolments, Applications |
+| **PostgreSQL**       | Host OS process | `identity`              | `5432`        | ASP.NET Core Identity authentication & roles    |
+| **MongoDB**          | Host OS process | `StudentManagement`     | `27017`       | Research activity documents                     |
 
 ### 2.2 Image vs. Container: Understanding the Core Difference
 
 One of the most essential concepts to master in Docker is the distinction between an **Image** and a **Container**. If you have ever wondered why an image appears in your image list but isn't serving web traffic, or why you can have multiple containers running from one single image, this distinction is key:
 
-| Analogy | Docker Image (Blueprint / Template) | Docker Container (Live Runtime Instance) |
-| :--- | :--- | :--- |
-| **Object-Oriented Programming** | `Class` (the type definition) | `Object` instance in memory (created with `new`) |
-| **Cooking & Baking** | Recipe printed in a cookbook | Active dish cooking in the oven |
-| **Building Construction** | Architectural blueprint on paper | Physical building you can walk inside |
-| **Operating Systems** | `.exe` or executable binary on disk | Active process with a PID in Task Manager |
+| Analogy                         | Docker Image (Blueprint / Template) | Docker Container (Live Runtime Instance)         |
+| :------------------------------ | :---------------------------------- | :----------------------------------------------- |
+| **Object-Oriented Programming** | `Class` (the type definition)       | `Object` instance in memory (created with `new`) |
+| **Cooking & Baking**            | Recipe printed in a cookbook        | Active dish cooking in the oven                  |
+| **Building Construction**       | Architectural blueprint on paper    | Physical building you can walk inside            |
+| **Operating Systems**           | `.exe` or executable binary on disk | Active process with a PID in Task Manager        |
 
 #### What is an Image?
+
 - An **Image** is an **immutable, read-only snapshot or package** that contains everything required to run your service: base OS files (e.g. Alpine Linux), system libraries, runtime engines (e.g. .NET 10 Runtime), environment configurations, and compiled application binaries.
 - Images are built once using a `Dockerfile` (`docker build`) or pulled from a registry like Docker Hub (`docker pull mysql:9.0`).
 - An image is static on disk and **never executes code on its own**. It consumes zero CPU and zero active RAM.
@@ -251,6 +264,7 @@ One of the most essential concepts to master in Docker is the distinction betwee
   ```
 
 #### What is a Container?
+
 - A **Container** is an **isolated, running process instance** instantiated from an image using `docker run` or `docker compose up`.
 - When Docker creates a container from an image, it provisions:
   1. An active process tree with isolated Linux namespaces (Process IDs, network stack, filesystem mount points).
@@ -288,17 +302,23 @@ One of the most essential concepts to master in Docker is the distinction betwee
 Before writing commands, understand these three critical container primitives:
 
 #### 1. The `localhost` Trap (Container Isolation)
+
 Inside a container, `localhost` (or `127.0.0.1`) refers **only to that specific container itself**, NOT to your host machine, and NOT to other containers!
-- When your web application runs inside a container, connecting to `localhost:3306` fails because there is no MySQL service running inside the *web* container.
+
+- When your web application runs inside a container, connecting to `localhost:3306` fails because there is no MySQL service running inside the _web_ container.
 - To communicate, containers must join a **shared Docker network** and address each other by their **container names** (e.g. `Server=mysql-db;Port=3306...`).
 
 #### 2. Container Ephemerality & Volumes
+
 Containers are designed to be immutable and disposable. When a container is deleted (`docker rm`), any data written inside its default writable layer is **permanently destroyed**.
+
 - Database data must NEVER be stored inside the container filesystem.
 - Instead, we mount a **Docker Named Volume** (e.g. `mysql_data:/var/lib/mysql`) into the container. Even if the container is destroyed and recreated, the volume persists on your host drive.
 
 #### 3. Environment Variable Hierarchy in ASP.NET Core
+
 In ASP.NET Core, any configuration value in `appsettings.json` can be overridden by environment variables using double underscores (`__`):
+
 - `ConnectionStrings:StudentManagementDatabase` in JSON $\rightarrow$ `ConnectionStrings__StudentManagementDatabase` in Docker environment variables.
 - `ConnectionStrings:IdentityDatabase` in JSON $\rightarrow$ `ConnectionStrings__IdentityDatabase`.
 - `ConnectionStrings:MongoDb` in JSON $\rightarrow$ `ConnectionStrings__MongoDb`.
@@ -311,6 +331,7 @@ To build a solid mental model of how containers work before using automated orch
 
 > [!WARNING]
 > **Port Conflicts with Host Databases (Mac Users Only):**
+>
 > - **Dev Portal VM Users (Default):** Your cloud VM is a dedicated container host with no host-level database servers running, so ports `3306`, `5432`, and `27017` are completely free. You can proceed directly to Step 3.1!
 > - **Personal Mac Users:** If you previously had local instances of MySQL (`3306`), PostgreSQL (`5432`), or MongoDB (`27017`) running directly on macOS, they will occupy those ports. Stop them before proceeding:
 >   - Stop Postgres.app or run `brew services stop postgresql@16`.
@@ -326,6 +347,7 @@ docker network create pgr-network
 ```
 
 Verify the network was created:
+
 ```bash
 docker network ls
 ```
@@ -337,11 +359,13 @@ docker network ls
 We will use the lightweight official `postgres:16-alpine` image.
 
 1. **Create a persistent named volume:**
+
    ```bash
    docker volume create postgres_data
    ```
 
 2. **Launch the PostgreSQL container:**
+
    ```bash
    docker run -d --name postgres-db --network pgr-network -p 5432:5432 -e POSTGRES_USER=identity -e POSTGRES_PASSWORD='identity$' -e POSTGRES_DB=identity -v postgres_data:/var/lib/postgresql/data --restart unless-stopped postgres:16-alpine
    ```
@@ -356,6 +380,7 @@ We will use the lightweight official `postgres:16-alpine` image.
    - `--restart unless-stopped`: Restarts the container automatically if Docker reboots.
 
 3. **Verify PostgreSQL is running and healthy:**
+
    ```bash
    # Check running containers
    docker ps -f name=postgres-db
@@ -371,16 +396,19 @@ We will use the lightweight official `postgres:16-alpine` image.
 We will use the official `mysql:9.0` (or `mysql:8.4-lts`) image.
 
 1. **Create a persistent named volume:**
+
    ```bash
    docker volume create mysql_data
    ```
 
 2. **Launch the MySQL container:**
+
    ```bash
    docker run -d --name mysql-db --network pgr-network -p 3306:3306 -e MYSQL_ROOT_PASSWORD='pass1234%uZ' -e MYSQL_DATABASE=student_management_db -v mysql_data:/var/lib/mysql --restart unless-stopped mysql:9.0
    ```
 
 3. **Verify MySQL is running:**
+
    ```bash
    # Watch the logs until you see "ready for connections"
    docker logs -f mysql-db
@@ -397,11 +425,13 @@ We will use the official `mysql:9.0` (or `mysql:8.4-lts`) image.
 We will use the official `mongo:5.0` image.
 
 1. **Create a persistent named volume:**
+
    ```bash
    docker volume create mongo_data
    ```
 
 2. **Launch the MongoDB container:**
+
    ```bash
    docker run -d --name mongo-db --network pgr-network -p 27017:27017 -v mongo_data:/data/db --restart unless-stopped mongo:5.0
    ```
@@ -420,9 +450,10 @@ We will use the official `mongo:5.0` image.
 A common beginner mistake is using a single Docker image containing the full .NET SDK to run the application in production. The .NET SDK image is over **800 MB** and contains compilers, NuGet caches, and command-line tools that should never be present in a production runtime.
 
 A **multi-stage build** solves this by using separate stages:
+
 1. **`build` stage**: Uses `mcr.microsoft.com/dotnet/sdk:10.0` to restore dependencies and compile the code.
 2. **`publish` stage**: Uses the SDK to package binaries in `Release` configuration.
-3. **`final` stage**: Copies *only* the compiled binaries into a slim `mcr.microsoft.com/dotnet/aspnet:10.0` runtime image (~**220 MB**). The compiler, source files, and temporary caches are discarded.
+3. **`final` stage**: Copies _only_ the compiled binaries into a slim `mcr.microsoft.com/dotnet/aspnet:10.0` runtime image (~**220 MB**). The compiler, source files, and temporary caches are discarded.
 
 ```
 +--------------------------------------------------------------------------------+
@@ -531,6 +562,7 @@ docker build -t pgr-student-management:1.0 .
 ```
 
 Verify the image exists in your local image cache:
+
 ```bash
 docker images pgr-student-management
 ```
@@ -548,21 +580,25 @@ docker run -d --name pgr-web --network pgr-network -p 5277:8080 -e ConnectionStr
 ```
 
 Inspect the container logs to watch the application start and seed databases:
+
 ```bash
 docker logs -f pgr-web
 ```
 
 Open your browser to [http://localhost:5277](http://localhost:5277):
+
 1. Navigate to **Students** (`/Students`) $\rightarrow$ verify data is fetched from the MySQL container.
 2. Navigate to **Academic Supervisors** (`/AcademicSupervisors`) $\rightarrow$ verify it redirects to `/Account/Login`.
 3. Sign in with `supervisor@pgr.ac.uk` / `Password123!` $\rightarrow$ verify authentication succeeds via the PostgreSQL container.
 4. Navigate to a student's **Research Activity Log** (`/ResearchActivities?studentNumber=S100001`) $\rightarrow$ verify documents are loaded from the MongoDB container.
 
 Clean up the manually launched containers before moving to Docker Compose:
+
 ```bash
 docker rm -f pgr-web mysql-db postgres-db mongo-db
 ```
-*(Don't worry: your data in `mysql_data`, `postgres_data`, and `mongo_data` remains safe!)*
+
+_(Don't worry: your data in `mysql_data`, `postgres_data`, and `mongo_data` remains safe!)_
 
 ---
 
@@ -591,7 +627,17 @@ services:
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-ppass1234%uZ"]
+      test:
+        [
+          "CMD",
+          "mysqladmin",
+          "ping",
+          "-h",
+          "localhost",
+          "-u",
+          "root",
+          "-ppass1234%uZ",
+        ]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -689,7 +735,7 @@ networks:
 
 > [!TIP]
 > **Why are `healthcheck` and `condition: service_healthy` so important?**
-> In Docker Compose, `depends_on: [mysql-db]` only waits until the MySQL container is *started*, not until MySQL is actually *ready to accept connections*. A database takes several seconds to initialise. Using health checks guarantees the ASP.NET Core web container will NOT start until MySQL, PostgreSQL, and MongoDB report that their listening sockets are healthy and ready!
+> In Docker Compose, `depends_on: [mysql-db]` only waits until the MySQL container is _started_, not until MySQL is actually _ready to accept connections_. A database takes several seconds to initialise. Using health checks guarantees the ASP.NET Core web container will NOT start until MySQL, PostgreSQL, and MongoDB report that their listening sockets are healthy and ready!
 
 ---
 
@@ -732,15 +778,15 @@ docker compose down -v
 
 Execute the following verification tasks to validate your containerised solution:
 
-| # | Task | Expected Result | Checked |
-| :-: | :--- | :--- | :-: |
-| 1 | `docker compose up -d` | All 4 services start; `docker compose ps` shows `(healthy)` | [ ] |
-| 2 | Visit `http://localhost:5277` | Home Dashboard renders with HTTP 200 | [ ] |
-| 3 | Visit `http://localhost:5277/Students` | Students list renders from `mysql-db` container | [ ] |
-| 4 | Visit `http://localhost:5277/AcademicSupervisors` | Redirects to `/Account/Login` (secured route) | [ ] |
-| 5 | Login with `supervisor@pgr.ac.uk` / `Password123!` | Authenticates via `postgres-db`, redirects to Supervisors | [ ] |
-| 6 | Visit `http://localhost:5277/ResearchActivities?studentNumber=S100001` | Displays research reflections from `mongo-db` container | [ ] |
-| 7 | Run `docker compose down && docker compose up -d` | Data persists (no data loss occurs) | [ ] |
+|  #  | Task                                                                   | Expected Result                                             | Checked |
+| :-: | :--------------------------------------------------------------------- | :---------------------------------------------------------- | :-----: |
+|  1  | `docker compose up -d`                                                 | All 4 services start; `docker compose ps` shows `(healthy)` |   [ ]   |
+|  2  | Visit `http://localhost:5277`                                          | Home Dashboard renders with HTTP 200                        |   [ ]   |
+|  3  | Visit `http://localhost:5277/Students`                                 | Students list renders from `mysql-db` container             |   [ ]   |
+|  4  | Visit `http://localhost:5277/AcademicSupervisors`                      | Redirects to `/Account/Login` (secured route)               |   [ ]   |
+|  5  | Login with `supervisor@pgr.ac.uk` / `Password123!`                     | Authenticates via `postgres-db`, redirects to Supervisors   |   [ ]   |
+|  6  | Visit `http://localhost:5277/ResearchActivities?studentNumber=S100001` | Displays research reflections from `mongo-db` container     |   [ ]   |
+|  7  | Run `docker compose down && docker compose up -d`                      | Data persists (no data loss occurs)                         |   [ ]   |
 
 ---
 
@@ -759,7 +805,7 @@ Execute the following verification tasks to validate your containerised solution
 Now that your application is fully containerised and orchestrated with Docker Compose, you are ready to explore cloud-native container orchestration!
 
 Proceed to the [**Bonus Lab: Scaling the PGR System with Kubernetes & MiniKube**](./bonus-lab-minikube-scaling.md) to learn how to:
+
 - Install and configure **MiniKube** and `kubectl`.
 - Convert Docker Compose services into Kubernetes **Pods**, **Deployments**, **Services**, and **PersistentVolumeClaims**.
 - **Case Study**: Horizontally scale the stateless web tier to handle peak application submission surges during the annual PhD admissions intake window.
-

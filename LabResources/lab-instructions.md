@@ -88,8 +88,8 @@ If you are working on a college lab PC (or any computer where you do not have ad
 
 1. **Sign In to the Microsoft Dev Portal:**
    - Open your web browser (Chrome, Edge, or Firefox) and navigate to:
-     $$\rightarrow\text{ }\textbf{\url{https://devportal.microsoft.com/}}$$
-   - Sign in using your **college/university Microsoft 365 credentials** (e.g. `your.name@college.ac.uk`).
+     ([https://devportal.microsoft.com/](https://devportal.microsoft.com/))
+   - Sign in using your **SHU Microsoft 365 credentials** (e.g. `your.name@student.shu.ac.uk`).
 
 2. **Access Your Assigned Dev Box (Virtual Machine):**
    - On the Dev Portal dashboard, locate your project workspace and the **Dev Box** provisioned for this module.
@@ -120,7 +120,7 @@ If you are working on a college lab PC (or any computer where you do not have ad
 
    - **Method 2 (Direct Installer Download):**
      Open Microsoft Edge inside the Dev Box and download the official **AMD64** installer directly:
-     $$\rightarrow\text{ }\textbf{\url{https://desktop.docker.com/win/main/amd64/Docker%20Desktop%20Installer.exe}}$$
+      ([https://desktop.docker.com/win/main/amd64/Docker%20Desktop%20Installer.exe](https://desktop.docker.com/win/main/amd64/Docker%20Desktop%20Installer.exe))
      Run `Docker Desktop Installer.exe`.
 
    > [!IMPORTANT]
